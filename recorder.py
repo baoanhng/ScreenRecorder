@@ -51,19 +51,14 @@ class ScreenRecorder:
             
             output = result.stderr
             
-            # Look for audio devices in output
-            # Priority: "Stereo Mix", "What U Hear", "CABLE Output", any audio device
+            # Priority devices for system audio capture
             priority_names = ["Stereo Mix", "What U Hear", "CABLE Output", "Loopback"]
             
-            lines = output.split('\n')
             audio_devices = []
-            in_audio_section = False
             
-            for line in lines:
-                if "DirectShow audio devices" in line:
-                    in_audio_section = True
-                    continue
-                if in_audio_section and '"' in line:
+            # Parse FFmpeg output - look for lines with (audio)
+            for line in output.split('\n'):
+                if '(audio)' in line and '"' in line:
                     # Extract device name between quotes
                     start = line.find('"') + 1
                     end = line.find('"', start)
@@ -71,17 +66,18 @@ class ScreenRecorder:
                         device_name = line[start:end]
                         if device_name and not device_name.startswith("@"):
                             audio_devices.append(device_name)
+                            print(f"Found audio device: {device_name}")
             
-            # Find best match
+            # Find best match by priority
             for priority in priority_names:
                 for device in audio_devices:
                     if priority.lower() in device.lower():
-                        print(f"Found audio device: {device}")
+                        print(f"Selected audio device: {device}")
                         return device
             
-            # Return first audio device if any
+            # Return first audio device if any (fallback to mic)
             if audio_devices:
-                print(f"Using audio device: {audio_devices[0]}")
+                print(f"Using fallback audio device: {audio_devices[0]}")
                 return audio_devices[0]
                 
         except Exception as e:
