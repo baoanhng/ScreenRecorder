@@ -1,7 +1,6 @@
 """
 Settings Tab - Configure app settings.
 """
-import tkinter as tk
 from tkinter import ttk, filedialog
 from settings import get_settings
 
@@ -25,8 +24,7 @@ class SettingsTab(ttk.Frame):
         dir_frame = ttk.LabelFrame(container, text="Output Directory", padding=10)
         dir_frame.pack(fill="x", pady=(0, 15))
         
-        self.dir_var = tk.StringVar()
-        self.dir_entry = ttk.Entry(dir_frame, textvariable=self.dir_var, width=50)
+        self.dir_entry = ttk.Entry(dir_frame, width=50)
         self.dir_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
         
         ttk.Button(dir_frame, text="📁 Browse", command=self._browse_directory).pack(side="left")
@@ -37,12 +35,10 @@ class SettingsTab(ttk.Frame):
         
         ttk.Label(buffer_frame, text="Duration (minutes):").pack(side="left")
         
-        self.duration_var = tk.StringVar()  # Use StringVar for Spinbox
         self.duration_spin = ttk.Spinbox(
             buffer_frame,
             from_=1,
             to=30,
-            textvariable=self.duration_var,
             width=5
         )
         self.duration_spin.pack(side="left", padx=10)
@@ -72,33 +68,38 @@ Ctrl+Shift+Q - Quit application"""
     
     def _load_settings(self):
         """Load current settings into UI."""
-        self.dir_var.set(self.settings.output_dir)
-        self.duration_var.set(str(self.settings.buffer_duration_minutes))
+        # Clear and insert for Entry
+        self.dir_entry.delete(0, "end")
+        self.dir_entry.insert(0, self.settings.output_dir)
+        
+        # Set spinbox value
+        self.duration_spin.delete(0, "end")
+        self.duration_spin.insert(0, str(self.settings.buffer_duration_minutes))
     
     def _browse_directory(self):
         """Open directory browser."""
-        current_dir = self.dir_var.get() or self.settings.output_dir
+        current_dir = self.dir_entry.get() or self.settings.output_dir
         directory = filedialog.askdirectory(
             initialdir=current_dir,
             title="Select Output Directory"
         )
         if directory:
-            self.dir_var.set(directory)
+            self.dir_entry.delete(0, "end")
+            self.dir_entry.insert(0, directory)
     
     def _save_settings(self):
         """Save current settings."""
         # Validate and save output directory
-        new_dir = self.dir_var.get()
+        new_dir = self.dir_entry.get()
         if new_dir:
             self.settings.output_dir = new_dir
         
         # Save buffer duration
         try:
-            duration = int(self.duration_var.get())
+            duration = int(self.duration_spin.get())
             self.settings.buffer_duration_minutes = duration
         except ValueError:
             pass
         
         self.status_label.config(text="✓ Settings saved!")
         self.after(2000, lambda: self.status_label.config(text=""))
-

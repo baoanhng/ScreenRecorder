@@ -1,11 +1,23 @@
 @echo off
-echo Building Screen Recorder...
+echo Building ScreenRecorder.exe...
+echo.
 
-REM Use user-installed pyinstaller
-set PATH=%APPDATA%\Python\Python312\Scripts;%PATH%
+:: Ensure pyinstaller is available
+where pyinstaller >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Installing PyInstaller...
+    pip install --user pyinstaller
+)
 
-pyinstaller --onefile --noconsole --name ScreenRecorder --icon=NONE main.py
+:: Build the executable
+pyinstaller --onefile --noconsole --name ScreenRecorder --clean main.py
 
 echo.
-echo Build complete! Check the dist folder for ScreenRecorder.exe
+if exist "dist\ScreenRecorder.exe" (
+    echo Build successful!
+    echo Output: dist\ScreenRecorder.exe
+) else (
+    echo Build failed!
+)
+echo.
 pause
