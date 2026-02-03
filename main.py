@@ -35,9 +35,10 @@ class ScreenRecorderApp:
     
     def _setup_hotkeys(self):
         """Register global hotkeys."""
-        keyboard.add_hotkey('F9', self._on_fulltime_hotkey, suppress=True)
-        keyboard.add_hotkey('F10', self._on_buffer_hotkey, suppress=True)
-        keyboard.add_hotkey('ctrl+shift+q', self._on_quit_hotkey, suppress=True)
+        # Note: suppress=False to avoid conflicts with other keyboard apps
+        keyboard.add_hotkey('F9', self._on_fulltime_hotkey)
+        keyboard.add_hotkey('F10', self._on_buffer_hotkey)
+        keyboard.add_hotkey('ctrl+shift+q', self._on_quit_hotkey)
     
     def _on_fulltime_hotkey(self):
         """Handle F9 - Toggle fulltime recording."""
