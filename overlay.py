@@ -61,16 +61,25 @@ class Overlay:
     def _set_capture_exclusion(self):
         """Set window display affinity to exclude from screen capture."""
         try:
-            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+            # Define argument types for 64-bit compatibility
+            user32 = ctypes.windll.user32
+            user32.GetParent.argtypes = [wintypes.HWND]
+            user32.GetParent.restype = wintypes.HWND
+            user32.GetAncestor.argtypes = [wintypes.HWND, ctypes.c_uint]
+            user32.GetAncestor.restype = wintypes.HWND
+            user32.SetWindowDisplayAffinity.argtypes = [wintypes.HWND, ctypes.c_DWORD]
+            user32.SetWindowDisplayAffinity.restype = wintypes.BOOL
+            
+            hwnd = user32.GetParent(self.root.winfo_id())
             if hwnd == 0:
                 # Try getting the root window handle differently
                 hwnd = self.root.winfo_id()
             
             # Get the actual top-level window
-            GWL_HWNDPARENT = -8
-            hwnd = ctypes.windll.user32.GetAncestor(hwnd, 2)  # GA_ROOT = 2
+            # GA_ROOT = 2
+            hwnd = user32.GetAncestor(hwnd, 2)
             
-            result = ctypes.windll.user32.SetWindowDisplayAffinity(
+            result = user32.SetWindowDisplayAffinity(
                 hwnd, WDA_EXCLUDEFROMCAPTURE
             )
             if result == 0:

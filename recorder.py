@@ -30,11 +30,23 @@ class ScreenRecorder:
         # Segment duration for buffer
         self.segment_duration = 10  # 10-second segments
         
+        # Find ffmpeg binary (prefer local)
+        self.ffmpeg_path = self._get_ffmpeg_path()
+        print(f"Using FFmpeg: {self.ffmpeg_path}")
+        
         # Detect audio device
         self._audio_device = self._detect_audio_device()
         
         # Detect hardware encoder
         self._hw_encoder = self._detect_hw_encoder()
+    
+    def _get_ffmpeg_path(self) -> str:
+        """Get path to ffmpeg executable, preferring local 'ffmpeg' folder."""
+        # Check local folder first
+        local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg", "ffmpeg.exe")
+        if os.path.exists(local_path):
+            return local_path
+        return "ffmpeg"
     
     def _detect_audio_device(self) -> str:
         """Detect available audio capture device.
@@ -45,7 +57,7 @@ class ScreenRecorder:
         try:
             # List DirectShow audio devices
             result = subprocess.run(
-                ["ffmpeg", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
+                [self.ffmpeg_path, "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
                 capture_output=True,
                 text=True,
                 creationflags=subprocess.CREATE_NO_WINDOW,
@@ -105,10 +117,10 @@ class ScreenRecorder:
         for encoder, name in hw_encoders:
             try:
                 # Test if the encoder actually works (driver might be too old)
-                # Try to encode 1 frame of blank video
+                # Try to encode 1 frame of blank video (needs meaningful size for NVENC)
                 cmd = [
-                    "ffmpeg", 
-                    "-f", "lavfi", "-i", "color=c=black:s=128x128", 
+                    self.ffmpeg_path, 
+                    "-f", "lavfi", "-i", "color=c=black:s=640x360", 
                     "-frames:v", "1", 
                     "-c:v", encoder, 
                     "-f", "null", "-"
@@ -146,10 +158,10 @@ class ScreenRecorder:
         Returns:
             FFmpeg command as list
         """
-        cmd = ["ffmpeg"]
+        cmd = [self.ffmpeg_path]
         
-        # Video input (screen capture at 30 fps - balanced quality/performance)
-        cmd.extend(["-f", "gdigrab", "-framerate", "30", "-i", "desktop"])
+        # Video input (screen capture at 60 fps)
+        cmd.extend(["-f", "gdigrab", "-framerate", "60", "-i", "desktop"])
         
         # Audio input if available
         if self._audio_device:

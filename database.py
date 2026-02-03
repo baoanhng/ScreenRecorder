@@ -78,9 +78,16 @@ class VideoDatabase:
         thumbnail_path = os.path.join(self.thumbnails_dir, f"{video_name}.jpg")
         
         try:
+            # Check local ffmpeg
+            ffmpeg_cmd = "ffmpeg"
+            # Assumes database.py is in root folder
+            local_ffmpeg = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg", "ffmpeg.exe")
+            if os.path.exists(local_ffmpeg):
+                ffmpeg_cmd = local_ffmpeg
+
             # Extract frame at 1 second, resize to 160x90
             cmd = [
-                "ffmpeg",
+                ffmpeg_cmd,
                 "-y",
                 "-ss", "1",
                 "-i", video_path,
