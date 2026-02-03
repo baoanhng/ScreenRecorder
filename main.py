@@ -19,12 +19,18 @@ class ScreenRecorderApp:
     
     def __init__(self):
         self.recorder = ScreenRecorder()
-        self.overlay = Overlay()
+        
+        # Create main window first (it owns the Tk root)
         self.main_window = MainWindow(
             self.recorder,
-            self.overlay,
+            overlay=None,  # Will set after creating overlay
             on_quit_callback=self._quit
         )
+        
+        # Create overlay as Toplevel of main window's root (single Tk instance)
+        self.overlay = Overlay(master=self.main_window.root)
+        self.main_window.set_overlay(self.overlay)
+        
         self._setup_hotkeys()
     
     def _setup_hotkeys(self):
@@ -93,9 +99,6 @@ class ScreenRecorderApp:
         print(f"Recordings saved to: {self.recorder.output_dir}")
         
         self.overlay.update_status("idle", False)
-        
-        # Show overlay
-        self.overlay.root.after(100, lambda: None)  # Keep overlay alive
         
         # Run main window (this is the main loop)
         self.main_window.run()

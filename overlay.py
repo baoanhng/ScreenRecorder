@@ -14,8 +14,19 @@ WDA_NONE = 0x00000000
 class Overlay:
     """A small overlay window that shows recording status."""
     
-    def __init__(self):
-        self.root = tk.Tk()
+    def __init__(self, master=None):
+        """Initialize overlay.
+        
+        Args:
+            master: Parent Tk window. If None, creates own Tk instance.
+        """
+        if master is None:
+            self.root = tk.Tk()
+            self._owns_root = True
+        else:
+            self.root = tk.Toplevel(master)
+            self._owns_root = False
+        
         self.root.title("Screen Recorder")
         
         # Window configuration
@@ -92,5 +103,6 @@ class Overlay:
     
     def quit(self):
         """Close the overlay."""
-        self.root.quit()
+        if self._owns_root:
+            self.root.quit()
         self.root.destroy()

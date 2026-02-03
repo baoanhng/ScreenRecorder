@@ -48,6 +48,14 @@ class MainWindow:
         # Update recording status periodically
         self._update_status()
     
+    def set_overlay(self, overlay):
+        """Set the overlay instance after creation.
+        
+        Args:
+            overlay: Overlay instance
+        """
+        self.overlay = overlay
+    
     def _create_tray_icon(self):
         """Create a simple tray icon image."""
         # Create a simple circle icon
