@@ -132,25 +132,41 @@ class MainWindow:
         style = ttk.Style()
         style.theme_use("clam")
         
-        # Dark colors
-        bg_dark = "#1a1a2e"
-        bg_medium = "#16213e"
-        fg_light = "#eaeaea"
-        accent = "#0f3460"
+        # Neutral dark colors (similar to VS Code/IDE dark themes)
+        bg_dark = "#1e1e1e"      # Main background
+        bg_medium = "#252526"    # Cards/panels
+        bg_light = "#2d2d2d"     # Hover/selected
+        fg_light = "#cccccc"     # Primary text
+        fg_dim = "#808080"       # Secondary text
+        accent = "#3c3c3c"       # Buttons/tabs
+        highlight = "#007acc"    # Selection highlight (blue accent)
         
         style.configure(".", background=bg_dark, foreground=fg_light)
         style.configure("TFrame", background=bg_dark)
         style.configure("TLabel", background=bg_dark, foreground=fg_light)
         style.configure("TButton", background=accent, foreground=fg_light)
+        style.map("TButton", background=[("active", bg_light)])
         style.configure("TNotebook", background=bg_dark)
         style.configure("TNotebook.Tab", background=bg_medium, foreground=fg_light, padding=[15, 8])
-        style.map("TNotebook.Tab", background=[("selected", accent)])
+        style.map("TNotebook.Tab", background=[("selected", bg_dark)])
         style.configure("Card.TFrame", background=bg_medium)
         style.configure("TLabelframe", background=bg_dark, foreground=fg_light)
         style.configure("TLabelframe.Label", background=bg_dark, foreground=fg_light)
-        style.configure("Accent.TButton", background="#e94560", foreground="white")
+        style.configure("TEntry", fieldbackground=bg_medium, foreground=fg_light)
+        style.configure("TSpinbox", fieldbackground=bg_medium, foreground=fg_light)
+        style.configure("Accent.TButton", background=highlight, foreground="white")
+        style.map("Accent.TButton", background=[("active", "#005a9e")])
         
         self.root.configure(bg=bg_dark)
+        
+        # Store colors for use in other widgets
+        self.colors = {
+            "bg_dark": bg_dark,
+            "bg_medium": bg_medium,
+            "bg_light": bg_light,
+            "fg_light": fg_light,
+            "highlight": highlight
+        }
     
     def _create_widgets(self):
         """Create the main window widgets."""

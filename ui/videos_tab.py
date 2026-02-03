@@ -8,6 +8,15 @@ from PIL import Image, ImageTk
 from database import get_database
 
 
+# Theme colors (matching main_window neutral dark theme)
+BG_DARK = "#1e1e1e"
+BG_MEDIUM = "#252526"
+BG_LIGHT = "#2d2d2d"
+FG_LIGHT = "#cccccc"
+FG_DIM = "#808080"
+HIGHLIGHT = "#007acc"
+
+
 class VideosTab(ttk.Frame):
     """Tab for viewing and managing recorded videos."""
     
@@ -34,11 +43,11 @@ class VideosTab(ttk.Frame):
         container.pack(fill="both", expand=True, padx=10, pady=5)
         
         # Canvas for scrolling
-        self.canvas = tk.Canvas(container, bg="#1a1a2e", highlightthickness=0)
+        self.canvas = tk.Canvas(container, bg=BG_DARK, highlightthickness=0)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=self.canvas.yview)
         
         # Inner frame for video cards
-        self.inner_frame = tk.Frame(self.canvas, bg="#1a1a2e")
+        self.inner_frame = tk.Frame(self.canvas, bg=BG_DARK)
         
         self.canvas.configure(yscrollcommand=scrollbar.set)
         
@@ -84,7 +93,7 @@ class VideosTab(ttk.Frame):
                 self.inner_frame,
                 text="No recordings yet.\n\nPress F9 for fulltime recording\nPress F10 for buffer mode",
                 font=("Segoe UI", 11),
-                bg="#1a1a2e", fg="#888888",
+                bg=BG_DARK, fg=FG_DIM,
                 justify="center"
             )
             empty_label.pack(pady=50, padx=20)
@@ -98,14 +107,14 @@ class VideosTab(ttk.Frame):
         video_id, filename, filepath, mode, duration, size, thumbnail_path, created_at = video
         
         # Outer container (for selection border)
-        outer = tk.Frame(self.inner_frame, bg="#1a1a2e", padx=3, pady=3)
+        outer = tk.Frame(self.inner_frame, bg=BG_DARK, padx=3, pady=3)
         outer.pack(fill="x", padx=5, pady=2)
         outer.video_id = video_id
         outer.filepath = filepath
         self.video_frames[video_id] = outer
         
         # Card background
-        card = tk.Frame(outer, bg="#16213e", padx=10, pady=8)
+        card = tk.Frame(outer, bg=BG_MEDIUM, padx=10, pady=8)
         card.pack(fill="x")
         
         # Bind click events to all widgets
@@ -117,11 +126,11 @@ class VideosTab(ttk.Frame):
         bind_clicks(card)
         
         # Left side: Thumbnail
-        thumb_container = tk.Frame(card, bg="#16213e", width=160, height=90)
+        thumb_container = tk.Frame(card, bg=BG_MEDIUM, width=160, height=90)
         thumb_container.pack(side="left", padx=(0, 15))
         thumb_container.pack_propagate(False)  # Fixed size
         
-        thumb_label = tk.Label(thumb_container, bg="#0a0a15", fg="#666666")
+        thumb_label = tk.Label(thumb_container, bg=BG_LIGHT, fg=FG_DIM)
         thumb_label.pack(fill="both", expand=True)
         bind_clicks(thumb_label)
         
@@ -142,20 +151,20 @@ class VideosTab(ttk.Frame):
             thumb_label.configure(text="No Preview")
         
         # Right side: Info
-        info = tk.Frame(card, bg="#16213e")
+        info = tk.Frame(card, bg=BG_MEDIUM)
         info.pack(side="left", fill="both", expand=True)
         bind_clicks(info)
         
         # Filename
         name_label = tk.Label(info, text=filename, font=("Segoe UI", 11, "bold"),
-                              bg="#16213e", fg="#eaeaea", anchor="w")
+                              bg=BG_MEDIUM, fg=FG_LIGHT, anchor="w")
         name_label.pack(anchor="w", fill="x")
         bind_clicks(name_label)
         
         # Mode
         mode_text = "🔴 Fulltime" if mode == "fulltime" else "🔵 Buffer"
         mode_label = tk.Label(info, text=mode_text, font=("Segoe UI", 9),
-                              bg="#16213e", fg="#aaaaaa", anchor="w")
+                              bg=BG_MEDIUM, fg=FG_DIM, anchor="w")
         mode_label.pack(anchor="w")
         
         # Metadata
@@ -163,19 +172,19 @@ class VideosTab(ttk.Frame):
         date_str = created_at[:16] if created_at else "Unknown"
         meta_text = f"{size_mb:.1f} MB  •  {date_str}"
         meta_label = tk.Label(info, text=meta_text, font=("Segoe UI", 9),
-                              bg="#16213e", fg="#666666", anchor="w")
+                              bg=BG_MEDIUM, fg=FG_DIM, anchor="w")
         meta_label.pack(anchor="w")
     
     def _select_video(self, video_id):
         """Select a video with visual feedback."""
         # Deselect previous
         if self.selected_id in self.video_frames:
-            self.video_frames[self.selected_id].configure(bg="#1a1a2e")
+            self.video_frames[self.selected_id].configure(bg=BG_DARK)
         
         # Select new
         self.selected_id = video_id
         if video_id in self.video_frames:
-            self.video_frames[video_id].configure(bg="#e94560")  # Red highlight
+            self.video_frames[video_id].configure(bg=HIGHLIGHT)  # Blue highlight
     
     def _play_video(self, filepath):
         """Open video in default player."""
