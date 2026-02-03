@@ -29,6 +29,111 @@ class ScreenRecorder:
         
         # Segment duration for buffer
         self.segment_duration = 10  # 10-second segments
+        
+        # Detect audio device
+        self._audio_device = self._detect_audio_device()
+    
+    def _detect_audio_device(self) -> str:
+        """Detect available audio capture device.
+        
+        Returns:
+            Name of audio device for FFmpeg, or None if not available.
+        """
+        try:
+            # List DirectShow audio devices
+            result = subprocess.run(
+                ["ffmpeg", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
+                capture_output=True,
+                text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                timeout=5
+            )
+            
+            output = result.stderr
+            
+            # Look for audio devices in output
+            # Priority: "Stereo Mix", "What U Hear", "CABLE Output", any audio device
+            priority_names = ["Stereo Mix", "What U Hear", "CABLE Output", "Loopback"]
+            
+            lines = output.split('\n')
+            audio_devices = []
+            in_audio_section = False
+            
+            for line in lines:
+                if "DirectShow audio devices" in line:
+                    in_audio_section = True
+                    continue
+                if in_audio_section and '"' in line:
+                    # Extract device name between quotes
+                    start = line.find('"') + 1
+                    end = line.find('"', start)
+                    if start > 0 and end > start:
+                        device_name = line[start:end]
+                        if device_name and not device_name.startswith("@"):
+                            audio_devices.append(device_name)
+            
+            # Find best match
+            for priority in priority_names:
+                for device in audio_devices:
+                    if priority.lower() in device.lower():
+                        print(f"Found audio device: {device}")
+                        return device
+            
+            # Return first audio device if any
+            if audio_devices:
+                print(f"Using audio device: {audio_devices[0]}")
+                return audio_devices[0]
+                
+        except Exception as e:
+            print(f"Error detecting audio devices: {e}")
+        
+        print("No audio capture device found - recording without audio")
+        return None
+    
+    def _build_ffmpeg_cmd(self, output_path: str, is_segment: bool = False, 
+                          max_segments: int = None) -> list:
+        """Build FFmpeg command with appropriate audio settings.
+        
+        Args:
+            output_path: Output file or pattern path
+            is_segment: Whether to use segmented output
+            max_segments: Max segments for segment wrap (required if is_segment)
+            
+        Returns:
+            FFmpeg command as list
+        """
+        cmd = ["ffmpeg"]
+        
+        # Video input (screen capture at 60 fps)
+        cmd.extend(["-f", "gdigrab", "-framerate", "60", "-i", "desktop"])
+        
+        # Audio input if available
+        if self._audio_device:
+            cmd.extend(["-f", "dshow", "-i", f"audio={self._audio_device}"])
+        
+        # Video encoding
+        cmd.extend([
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-crf", "23",
+            "-pix_fmt", "yuv420p"
+        ])
+        
+        # Audio encoding if we have audio
+        if self._audio_device:
+            cmd.extend(["-c:a", "aac", "-b:a", "192k"])
+        
+        # Segmentation options
+        if is_segment:
+            cmd.extend([
+                "-f", "segment",
+                "-segment_time", str(self.segment_duration),
+                "-segment_wrap", str(max_segments),
+                "-reset_timestamps", "1"
+            ])
+        
+        cmd.extend(["-y", output_path])
+        return cmd
     
     @property
     def output_dir(self) -> str:
@@ -91,19 +196,8 @@ class ScreenRecorder:
             self.output_dir, f"recording_{timestamp}.mp4"
         )
         
-        # FFmpeg command for fulltime recording
-        cmd = [
-            "ffmpeg",
-            "-f", "gdigrab",
-            "-framerate", "30",
-            "-i", "desktop",
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-crf", "23",
-            "-pix_fmt", "yuv420p",
-            "-y",
-            self.current_output_file
-        ]
+        # Build FFmpeg command using helper
+        cmd = self._build_ffmpeg_cmd(self.current_output_file)
         
         try:
             self.ffmpeg_process = subprocess.Popen(
@@ -169,22 +263,8 @@ class ScreenRecorder:
         # FFmpeg command for segmented recording
         segment_pattern = os.path.join(self.buffer_dir, "buffer_%04d.mp4")
         
-        cmd = [
-            "ffmpeg",
-            "-f", "gdigrab",
-            "-framerate", "30",
-            "-i", "desktop",
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-crf", "23",
-            "-pix_fmt", "yuv420p",
-            "-f", "segment",
-            "-segment_time", str(self.segment_duration),
-            "-segment_wrap", str(max_segments),
-            "-reset_timestamps", "1",
-            "-y",
-            segment_pattern
-        ]
+        # Build FFmpeg command using helper
+        cmd = self._build_ffmpeg_cmd(segment_pattern, is_segment=True, max_segments=max_segments)
         
         try:
             self.ffmpeg_process = subprocess.Popen(

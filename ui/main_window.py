@@ -1,8 +1,12 @@
 """
 Main Window - The primary application window with tabs.
+Supports minimizing to system tray.
 """
 import tkinter as tk
 from tkinter import ttk
+import threading
+from PIL import Image, ImageDraw
+import pystray
 from ui.videos_tab import VideosTab
 from ui.settings_tab import SettingsTab
 
@@ -27,17 +31,93 @@ class MainWindow:
         self.root.geometry("700x500")
         self.root.minsize(600, 400)
         
+        # System tray
+        self.tray_icon = None
+        self._tray_thread = None
+        
         # Set dark theme
         self._setup_styles()
         
         # Create UI
         self._create_widgets()
         
-        # Handle window close
+        # Handle window events
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.root.bind("<Unmap>", self._on_minimize)
         
         # Update recording status periodically
         self._update_status()
+    
+    def _create_tray_icon(self):
+        """Create a simple tray icon image."""
+        # Create a simple circle icon
+        size = 64
+        image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        
+        # Draw a red circle (recording indicator style)
+        draw.ellipse([4, 4, size-4, size-4], fill='#e94560', outline='#1a1a2e', width=2)
+        
+        return image
+    
+    def _setup_tray(self):
+        """Setup the system tray icon."""
+        menu = pystray.Menu(
+            pystray.MenuItem("Show", self._show_from_tray, default=True),
+            pystray.MenuItem("Fulltime (F9)", self._tray_toggle_fulltime),
+            pystray.MenuItem("Buffer (F10)", self._tray_toggle_buffer),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Quit", self._tray_quit)
+        )
+        
+        self.tray_icon = pystray.Icon(
+            "ScreenRecorder",
+            self._create_tray_icon(),
+            "Screen Recorder",
+            menu
+        )
+    
+    def _show_from_tray(self, icon=None, item=None):
+        """Show window from tray."""
+        self.root.after(0, self._restore_window)
+    
+    def _restore_window(self):
+        """Restore the window."""
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+        
+        # Stop tray icon
+        if self.tray_icon:
+            self.tray_icon.stop()
+            self.tray_icon = None
+    
+    def _tray_toggle_fulltime(self, icon=None, item=None):
+        """Toggle fulltime from tray."""
+        self.root.after(0, self._toggle_fulltime)
+    
+    def _tray_toggle_buffer(self, icon=None, item=None):
+        """Toggle buffer from tray."""
+        self.root.after(0, self._toggle_buffer)
+    
+    def _tray_quit(self, icon=None, item=None):
+        """Quit from tray."""
+        if self.tray_icon:
+            self.tray_icon.stop()
+        self.root.after(0, self._on_close)
+    
+    def _on_minimize(self, event=None):
+        """Handle window minimize - send to tray."""
+        if self.root.state() == 'iconic':
+            self.root.withdraw()  # Hide from taskbar
+            self._start_tray()
+    
+    def _start_tray(self):
+        """Start the system tray icon."""
+        if self.tray_icon is None:
+            self._setup_tray()
+            self._tray_thread = threading.Thread(target=self.tray_icon.run, daemon=True)
+            self._tray_thread.start()
     
     def _setup_styles(self):
         """Configure ttk styles for dark theme."""
@@ -156,6 +236,10 @@ class MainWindow:
     
     def _on_close(self):
         """Handle window close."""
+        # Stop tray if running
+        if self.tray_icon:
+            self.tray_icon.stop()
+        
         if self.on_quit_callback:
             self.on_quit_callback()
         self.root.destroy()
