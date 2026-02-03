@@ -32,6 +32,9 @@ class ScreenRecorder:
         
         # Detect audio device
         self._audio_device = self._detect_audio_device()
+        
+        # Detect hardware encoder
+        self._hw_encoder = self._detect_hw_encoder()
     
     def _detect_audio_device(self) -> str:
         """Detect available audio capture device.
@@ -86,7 +89,52 @@ class ScreenRecorder:
         print("No audio capture device found - recording without audio")
         return None
     
-    def _build_ffmpeg_cmd(self, output_path: str, is_segment: bool = False, 
+    def _detect_hw_encoder(self) -> str:
+        """Detect available and working hardware encoder.
+        
+        Returns:
+            Encoder name (h264_nvenc, h264_amf, h264_qsv) or libx264 as fallback
+        """
+        # Candidates in priority order
+        hw_encoders = [
+            ("h264_nvenc", "NVIDIA"),
+            ("h264_amf", "AMD"),
+            ("h264_qsv", "Intel"),
+        ]
+        
+        for encoder, name in hw_encoders:
+            try:
+                # Test if the encoder actually works (driver might be too old)
+                # Try to encode 1 frame of blank video
+                cmd = [
+                    "ffmpeg", 
+                    "-f", "lavfi", "-i", "color=c=black:s=128x128", 
+                    "-frames:v", "1", 
+                    "-c:v", encoder, 
+                    "-f", "null", "-"
+                ]
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    timeout=3
+                )
+                
+                if result.returncode == 0:
+                    print(f"Verified working {name} hardware encoder: {encoder}")
+                    return encoder
+                else:
+                    print(f"Hardware encoder {encoder} found but failed test (Driver update may be required)")
+                    
+            except Exception as e:
+                print(f"Error testing encoder {encoder}: {e}")
+        
+        print("Using CPU encoder: libx264 (Optimized for performance)")
+        return "libx264"
+    
+    def _build_ffmpeg_cmd(self, output_path: str, is_segment: bool = False,
                           max_segments: int = None) -> list:
         """Build FFmpeg command with appropriate audio settings.
         
@@ -100,20 +148,51 @@ class ScreenRecorder:
         """
         cmd = ["ffmpeg"]
         
-        # Video input (screen capture at 60 fps)
-        cmd.extend(["-f", "gdigrab", "-framerate", "60", "-i", "desktop"])
+        # Video input (screen capture at 30 fps - balanced quality/performance)
+        cmd.extend(["-f", "gdigrab", "-framerate", "30", "-i", "desktop"])
         
         # Audio input if available
         if self._audio_device:
             cmd.extend(["-f", "dshow", "-i", f"audio={self._audio_device}"])
         
-        # Video encoding
-        cmd.extend([
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-crf", "23",
-            "-pix_fmt", "yuv420p"
-        ])
+        # Video encoding - use hardware if available
+        encoder = self._hw_encoder
+        if encoder == "h264_nvenc":
+            # NVIDIA NVENC - very low CPU usage
+            cmd.extend([
+                "-c:v", "h264_nvenc",
+                "-preset", "p1",        # Fastest preset
+                "-tune", "ll",          # Low latency
+                "-rc", "vbr",           # Variable bitrate
+                "-cq", "23",            # Quality level
+                "-pix_fmt", "yuv420p"
+            ])
+        elif encoder == "h264_amf":
+            # AMD AMF
+            cmd.extend([
+                "-c:v", "h264_amf",
+                "-quality", "speed",
+                "-rc", "vbr_latency",
+                "-qp_i", "23",
+                "-qp_p", "23",
+                "-pix_fmt", "yuv420p"
+            ])
+        elif encoder == "h264_qsv":
+            # Intel QuickSync
+            cmd.extend([
+                "-c:v", "h264_qsv",
+                "-preset", "veryfast",
+                "-global_quality", "23",
+                "-pix_fmt", "nv12"
+            ])
+        else:
+            # CPU fallback
+            cmd.extend([
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-crf", "23",
+                "-pix_fmt", "yuv420p"
+            ])
         
         # Audio encoding if we have audio
         if self._audio_device:
